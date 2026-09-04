@@ -1,8 +1,3 @@
-use crate::audio::float32_to_pcm16_wav;
-use crate::config::Config;
-use crate::error::AppError;
-use crate::parser::EmotionParser;
-use crate::zonos::{ZonosClient, ZonosGenerateRequest};
 use axum::{
     extract::State,
     http::{header, StatusCode},
@@ -13,6 +8,12 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::info;
 
+use crate::audio::float32_to_pcm16_wav;
+use crate::config::Config;
+use crate::error::AppError;
+use crate::parser::EmotionParser;
+use crate::zonos::{types::ZonosGenerateRequest, ZonosClient};
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SpeechRequest {
     pub model: Option<String>,
@@ -20,6 +21,8 @@ pub struct SpeechRequest {
     pub voice: Option<String>,
     pub response_format: Option<String>,
     pub speed: Option<f32>,
+    pub speaker_audio_base64: Option<String>,
+    pub speaker_wav_base64: Option<String>,
 }
 
 pub struct AppState {
@@ -54,19 +57,32 @@ pub async fn handle_speech(
     let base_speed = payload.speed.unwrap_or(1.0).clamp(0.25, 4.0);
     let final_speed = base_speed * parsed.speed_factor;
 
+    // 4. Resolve speaker reference audio (base64) vs registered embedding name
+    let custom_audio_b64 = payload
+        .speaker_audio_base64
+        .or(payload.speaker_wav_base64)
+        .filter(|s| !s.trim().is_empty());
+
+    let (speaker_embedding_name, speaker_audio_base64) = match custom_audio_b64 {
+        Some(b64) => (None, Some(b64)),
+        None => (Some(voice.to_string()), None),
+    };
+
     info!(
         original_input = %payload.input,
         cleaned_text = %parsed.cleaned_text,
         voice = %voice,
+        has_custom_audio = speaker_audio_base64.is_some(),
         tags = ?parsed.detected_tags,
         final_speed = %final_speed,
         "Processing TTS request"
     );
 
-    // 4. Build Zonos 2 request
+    // 5. Build Zonos 2 request
     let zonos_req = ZonosGenerateRequest {
         text: parsed.cleaned_text,
-        speaker_embedding_name: voice.to_string(),
+        speaker_embedding_name,
+        speaker_audio_base64,
         language: "ja".to_string(),
         emotion_sliders: parsed.emotion_sliders,
         emotion_cfg_scale: parsed.emotion_cfg_scale,
@@ -76,14 +92,14 @@ pub async fn handle_speech(
         stream: false,
     };
 
-    // 5. Call Zonos 2 backend (serialized by internal mutex)
+    // 6. Call Zonos 2 backend (serialized by internal mutex)
     let raw_pcm = state.zonos.generate_pcm(&zonos_req).await?;
 
-    // 6. Convert float32 PCM to standard 16-bit integer WAV (44.1kHz, Mono)
+    // 7. Convert float32 PCM to standard 16-bit integer WAV (44.1kHz, Mono)
     let wav_data = float32_to_pcm16_wav(&raw_pcm, 44100, 1)
         .map_err(|e| AppError::AudioConversionError(e))?;
 
-    // 7. Build HTTP response
+    // 8. Build HTTP response
     let tags_header = parsed.detected_tags.join(", ");
     let response = (
         StatusCode::OK,

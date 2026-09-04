@@ -36,7 +36,13 @@ impl ZonosClient {
         let _guard = self.lock.lock().await;
 
         let url = format!("{}/tts/generate", self.base_url);
-        debug!(url = %url, text = %req.text, speaker = %req.speaker_embedding_name, "Calling Zonos 2 backend");
+        debug!(
+            url = %url,
+            text = %req.text,
+            speaker = ?req.speaker_embedding_name,
+            has_custom_audio = req.speaker_audio_base64.is_some(),
+            "Calling Zonos 2 backend"
+        );
 
         let response = self
             .client

@@ -165,3 +165,47 @@ async fn test_speech_e2e_with_emotion_and_wav_conversion() {
     assert!((s2 - -16384).abs() <= 1);
     assert_eq!(s3, 32767);
 }
+
+#[tokio::test]
+async fn test_speech_with_custom_speaker_audio_base64() {
+    let mock_server = MockServer::start().await;
+
+    // Verify mock server receives speaker_audio_base64 and no speaker_embedding_name
+    let mut fake_pcm = Vec::new();
+    fake_pcm.write_f32::<LittleEndian>(0.5).unwrap();
+
+    Mock::given(method("POST"))
+        .and(path("/tts/generate"))
+        .and(wiremock::matchers::body_partial_json(serde_json::json!({
+            "speaker_audio_base64": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(fake_pcm))
+        .mount(&mock_server)
+        .await;
+
+    let config = create_test_config(mock_server.uri());
+    let zonos = ZonosClient::new(config.zonos_url.clone());
+    let state = Arc::new(AppState { config, zonos });
+    let app = create_router(state);
+
+    let req_body = json!({
+        "model": "zonos2",
+        "input": "カスタム話者で喋るよ",
+        "speaker_audio_base64": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="
+    });
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/v1/audio/speech")
+                .method("POST")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_vec(&req_body).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+}
+

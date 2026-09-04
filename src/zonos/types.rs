@@ -4,7 +4,10 @@ use std::collections::HashMap;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ZonosGenerateRequest {
     pub text: String,
-    pub speaker_embedding_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub speaker_embedding_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub speaker_audio_base64: Option<String>,
     pub language: String,
     pub emotion_sliders: HashMap<String, f32>,
     pub emotion_cfg_scale: f32,
