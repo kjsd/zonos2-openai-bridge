@@ -9,10 +9,10 @@ use std::sync::Arc;
 use tracing::info;
 
 use crate::audio::float32_to_pcm16_wav;
-use crate::config::Config;
 use crate::error::AppError;
+use crate::handlers::AppState;
 use crate::parser::EmotionParser;
-use crate::zonos::{types::ZonosGenerateRequest, ZonosClient};
+use crate::zonos::types::ZonosGenerateRequest;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SpeechRequest {
@@ -23,11 +23,6 @@ pub struct SpeechRequest {
     pub speed: Option<f32>,
     pub speaker_audio_base64: Option<String>,
     pub speaker_wav_base64: Option<String>,
-}
-
-pub struct AppState {
-    pub config: Config,
-    pub zonos: ZonosClient,
 }
 
 pub async fn handle_speech(

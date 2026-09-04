@@ -27,7 +27,7 @@ fn create_test_config(zonos_url: String) -> Config {
 async fn test_models_endpoint() {
     let config = create_test_config("http://127.0.0.1:9999".to_string());
     let zonos = ZonosClient::new(config.zonos_url.clone());
-    let state = Arc::new(AppState { config, zonos });
+    let state = Arc::new(AppState::new(config, zonos));
     let app = create_router(state);
 
     let response = app
@@ -55,7 +55,7 @@ async fn test_models_endpoint() {
 async fn test_speech_empty_input_bad_request() {
     let config = create_test_config("http://127.0.0.1:9999".to_string());
     let zonos = ZonosClient::new(config.zonos_url.clone());
-    let state = Arc::new(AppState { config, zonos });
+    let state = Arc::new(AppState::new(config, zonos));
     let app = create_router(state);
 
     let req_body = json!({
@@ -103,7 +103,7 @@ async fn test_speech_e2e_with_emotion_and_wav_conversion() {
 
     let config = create_test_config(mock_zonos.uri());
     let zonos = ZonosClient::new(config.zonos_url.clone());
-    let state = Arc::new(AppState { config, zonos });
+    let state = Arc::new(AppState::new(config, zonos));
     let app = create_router(state);
 
     // 2. Send OpenAI speech request with [whisper] emotion tag
@@ -186,7 +186,7 @@ async fn test_speech_with_custom_speaker_audio_base64() {
 
     let config = create_test_config(mock_server.uri());
     let zonos = ZonosClient::new(config.zonos_url.clone());
-    let state = Arc::new(AppState { config, zonos });
+    let state = Arc::new(AppState::new(config, zonos));
     let app = create_router(state);
 
     let req_body = json!({
@@ -214,7 +214,7 @@ async fn test_speech_with_custom_speaker_audio_base64() {
 async fn test_speech_input_too_long() {
     let config = create_test_config("http://127.0.0.1:9999".to_string());
     let zonos = ZonosClient::new(config.zonos_url.clone());
-    let state = Arc::new(AppState { config, zonos });
+    let state = Arc::new(AppState::new(config, zonos));
     let app = create_router(state);
 
     let long_text = "あ".repeat(4097);
@@ -236,6 +236,186 @@ async fn test_speech_input_too_long() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn test_speakers_endpoint() {
+    let config = create_test_config("http://127.0.0.1:9999".to_string());
+    let zonos = ZonosClient::new(config.zonos_url.clone());
+    let state = Arc::new(AppState::new(config, zonos));
+    let app = create_router(state);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/speakers")
+                .method("GET")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let speakers: Vec<String> = serde_json::from_slice(&body).unwrap();
+    assert!(speakers.contains(&"nina2".to_string()));
+}
+
+#[tokio::test]
+async fn test_languages_endpoint() {
+    let config = create_test_config("http://127.0.0.1:9999".to_string());
+    let zonos = ZonosClient::new(config.zonos_url.clone());
+    let state = Arc::new(AppState::new(config, zonos));
+    let app = create_router(state);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/languages")
+                .method("GET")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let langs: Vec<String> = serde_json::from_slice(&body).unwrap();
+    assert!(langs.contains(&"ja".to_string()));
+    assert!(langs.contains(&"en".to_string()));
+}
+
+#[tokio::test]
+async fn test_unmapped_fallback_404() {
+    let config = create_test_config("http://127.0.0.1:9999".to_string());
+    let zonos = ZonosClient::new(config.zonos_url.clone());
+    let state = Arc::new(AppState::new(config, zonos));
+    let app = create_router(state);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/some/random/missing/route")
+                .method("POST")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn test_gradio_upload_endpoint() {
+    let config = create_test_config("http://127.0.0.1:9999".to_string());
+    let zonos = ZonosClient::new(config.zonos_url.clone());
+    let state = Arc::new(AppState::new(config, zonos));
+    let app = create_router(state);
+
+    // Build multipart body
+    let boundary = "------------------------boundary123";
+    let body_bytes = format!(
+        "--{boundary}\r\nContent-Disposition: form-data; name=\"files\"; filename=\"test_voice.wav\"\r\nContent-Type: audio/wav\r\n\r\nRIFFfakebytes\r\n--{boundary}--\r\n"
+    );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/gradio_api/upload")
+                .method("POST")
+                .header(
+                    "Content-Type",
+                    format!("multipart/form-data; boundary={boundary}"),
+                )
+                .body(Body::from(body_bytes))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let paths: Vec<String> = serde_json::from_slice(&body).unwrap();
+    assert_eq!(paths.len(), 1);
+    assert!(paths[0].ends_with(".wav"));
+    assert!(std::path::Path::new(&paths[0]).exists());
+}
+
+#[tokio::test]
+async fn test_gradio_generate_and_file_flow() {
+    let mock_server = MockServer::start().await;
+
+    let mut fake_pcm = Vec::new();
+    fake_pcm.write_f32::<LittleEndian>(0.2).unwrap();
+
+    Mock::given(method("POST"))
+        .and(path("/tts/generate"))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(fake_pcm))
+        .mount(&mock_server)
+        .await;
+
+    let config = create_test_config(mock_server.uri());
+    let zonos = ZonosClient::new(config.zonos_url.clone());
+    let state = Arc::new(AppState::new(config, zonos));
+    let app = create_router(state);
+
+    // 1. Call generate_audio
+    let req_body = json!({
+        "data": [
+            null,
+            "[whisper] こんにちは、ドヴァキン",
+            null,
+            null
+        ]
+    });
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/gradio_api/call/generate_audio")
+                .method("POST")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_vec(&req_body).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let res_json: Value = serde_json::from_slice(&body).unwrap();
+    let event_id = res_json["event_id"].as_str().unwrap();
+    assert!(event_id.starts_with("event_"));
+
+    // Wait a little for background generation to complete
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
+    // Check generated file path
+    let out_file_path = format!("/tmp/zonos_gradio_voices/out_{event_id}.wav");
+    assert!(std::path::Path::new(&out_file_path).exists());
+
+    // 2. Fetch the file via /gradio_api/file=...
+    let file_uri = format!("/gradio_api/file={out_file_path}");
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(&file_uri)
+                .method("GET")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers().get("content-type").unwrap(),
+        "audio/wav"
+    );
 }
 
 
