@@ -73,10 +73,16 @@ impl ZonosClient {
 
     /// Health check for Zonos 2 backend
     pub async fn health_check(&self) -> bool {
-        let url = format!("{}/health", self.base_url);
+        let url = format!("{}/tts/capabilities", self.base_url);
         match self.client.get(&url).send().await {
             Ok(resp) => resp.status().is_success(),
-            Err(_) => false,
+            Err(_) => {
+                let root_url = format!("{}/", self.base_url);
+                match self.client.get(&root_url).send().await {
+                    Ok(resp) => resp.status().is_success(),
+                    Err(_) => false,
+                }
+            }
         }
     }
 }
