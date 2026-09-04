@@ -5,7 +5,7 @@
 
 A high-performance, ultra-low latency **OpenAI-compatible Text-to-Speech (TTS) proxy bridge** for **Zyphra Zonos 2**, written in Rust.
 
-It allows SkyrimNet (Chatterbox client), `nina_agent`, `kitt_agent`, and standard OpenAI TTS clients (Open WebUI, AnythingLLM, etc.) to seamlessly use Zonos 2 with zero code changes.
+It enables SkyrimNet (Chatterbox client), `nina_agent`, `kitt_agent`, and standard OpenAI TTS clients (Open WebUI, AnythingLLM, etc.) to seamlessly use Zonos 2 with zero code changes.
 
 ---
 
@@ -35,39 +35,101 @@ Input text can include inline emotion tags. The bridge automatically extracts th
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Installation & Building (Linux / macOS)
 
-### 1. Build
+### 1. Prerequisites (Rust Toolchain)
+
+If Rust is not yet installed on your machine (e.g., on a fresh Linux server):
 
 ```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
+```
+
+### 2. Clone & Build Release Binary
+
+```bash
+git clone https://github.com/kjsd/zonos2-openai-bridge.git
+cd zonos2-openai-bridge
 cargo build --release
 ```
 
-### 2. Run
+The optimized binary will be produced at:
+`target/release/zonos2-openai-bridge` (~8MB)
 
-```bash
-# Default connects to Zonos 2 on http://127.0.0.1:1919 and listens on port 8000
-./target/release/zonos2-openai-bridge
-```
+---
 
-### Configuration Options
+## ⚙️ Configuration
 
-Options can be passed via CLI arguments or environment variables:
+Options can be set via CLI flags or environment variables:
 
 | Argument | Environment Variable | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `--host` | `HOST` | `0.0.0.0` | Host to bind bridge server to |
+| `--host` | `HOST` | `0.0.0.0` | Host address to bind bridge server to |
 | `-p, --port` | `PORT` | `8000` | Port to listen on |
 | `--zonos-url` | `ZONOS_URL` | `http://127.0.0.1:1919` | Base URL of Zonos 2 FastAPI server |
 | `--default-voice` | `DEFAULT_VOICE` | `nina2` | Default speaker embedding name |
 | `--default-model` | `DEFAULT_MODEL` | `zonos2` | Default model name |
 | `--log-level` | `LOG_LEVEL` | `info` | Log verbosity (`info`, `debug`, `trace`) |
 
+You can also create a `.env` file in the working directory:
+
+```env
+HOST=0.0.0.0
+PORT=8000
+ZONOS_URL=http://127.0.0.1:1919
+DEFAULT_VOICE=nina2
+LOG_LEVEL=info
+```
+
 ---
 
-## 📡 API Usage
+## 🖥️ Running as a systemd Service (Production on Linux)
 
-### Standard OpenAI Request (cURL)
+To run `zonos2-openai-bridge` as a persistent background daemon on Linux:
+
+1. Create a systemd unit file at `/etc/systemd/system/zonos2-openai-bridge.service`:
+
+```ini
+[Unit]
+Description=Zonos 2 OpenAI TTS Bridge
+After=network.target
+
+[Service]
+Type=simple
+User=minoru
+WorkingDirectory=/home/minoru/work/proj/zonos2-openai-bridge
+ExecStart=/home/minoru/work/proj/zonos2-openai-bridge/target/release/zonos2-openai-bridge
+Restart=always
+RestartSec=3
+Environment=HOST=0.0.0.0
+Environment=PORT=8000
+Environment=ZONOS_URL=http://127.0.0.1:1919
+Environment=DEFAULT_VOICE=nina2
+Environment=LOG_LEVEL=info
+
+[Install]
+WantedBy=multi-user.target
+```
+
+2. Enable and start the service:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now zonos2-openai-bridge
+```
+
+3. Check logs:
+
+```bash
+journalctl -u zonos2-openai-bridge -f
+```
+
+---
+
+## 📡 API Usage & Client Integration
+
+### 1. Standard cURL Request
 
 ```bash
 curl -X POST http://localhost:8000/v1/audio/speech \
@@ -78,17 +140,17 @@ curl -X POST http://localhost:8000/v1/audio/speech \
     "voice": "nina2",
     "response_format": "wav"
   }' \
-  --output output.wav
+  --output speech.wav
 ```
 
-### Python (OpenAI Official Client)
+### 2. Python (Official OpenAI Client)
 
 ```python
 from openai import OpenAI
 
 client = OpenAI(
-    base_url="http://localhost:8000/v1",
-    api_key="none"  # Not required for local bridge
+    base_url="http://nina.local:8000/v1",
+    api_key="none"
 )
 
 response = client.audio.speech.create(
@@ -100,18 +162,29 @@ response = client.audio.speech.create(
 response.stream_to_file("output.wav")
 ```
 
-### SkyrimNet (Chatterbox Integration)
-In SkyrimNet's TTS configuration:
-1. **TTS Provider**: `Chatterbox` (or `OpenAI Compatible`)
-2. **Endpoint**: `http://nina.local:8000/v1/audio/speech`
-3. **Voice**: `nina2`
-4. **Format**: `wav`
+### 3. SkyrimNet (Chatterbox Client)
+
+In SkyrimNet configuration:
+- **TTS Engine**: `Chatterbox` (or `OpenAI Compatible`)
+- **Server URL**: `http://nina.local:8000/v1/audio/speech`
+- **Voice**: `nina2`
+- **Format**: `wav`
+
+### 4. Health Check & Models
+
+```bash
+# Check status and Zonos 2 connectivity
+curl http://localhost:8000/health
+
+# List supported models
+curl http://localhost:8000/v1/models
+```
 
 ---
 
 ## 🧪 Testing
 
-Run all unit tests and mock integration tests:
+Run all unit and integration tests:
 
 ```bash
 cargo test
