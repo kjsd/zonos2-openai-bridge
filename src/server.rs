@@ -21,6 +21,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/v1/audio/speech", post(handle_speech))
         .route("/v1/models", get(handle_models))
         .route("/health", get(handle_health))
+        .layer(axum::extract::DefaultBodyLimit::max(50 * 1024 * 1024))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(state)
