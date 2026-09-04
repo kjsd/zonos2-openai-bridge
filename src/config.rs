@@ -30,4 +30,8 @@ pub struct Config {
     /// Log level (trace, debug, info, warn, error)
     #[arg(long, env = "LOG_LEVEL", default_value = "info")]
     pub log_level: String,
+
+    /// Maximum request body size in megabytes (for large base64 speaker audio)
+    #[arg(long, env = "MAX_BODY_SIZE_MB", default_value_t = 100)]
+    pub max_body_size_mb: usize,
 }

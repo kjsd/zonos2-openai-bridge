@@ -19,6 +19,7 @@ fn create_test_config(zonos_url: String) -> Config {
         default_voice: "nina2".to_string(),
         default_model: "zonos2".to_string(),
         log_level: "error".to_string(),
+        max_body_size_mb: 100,
     }
 }
 
@@ -208,4 +209,33 @@ async fn test_speech_with_custom_speaker_audio_base64() {
 
     assert_eq!(response.status(), StatusCode::OK);
 }
+
+#[tokio::test]
+async fn test_speech_input_too_long() {
+    let config = create_test_config("http://127.0.0.1:9999".to_string());
+    let zonos = ZonosClient::new(config.zonos_url.clone());
+    let state = Arc::new(AppState { config, zonos });
+    let app = create_router(state);
+
+    let long_text = "あ".repeat(4097);
+    let req_body = json!({
+        "model": "zonos2",
+        "input": long_text
+    });
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/v1/audio/speech")
+                .method("POST")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_vec(&req_body).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
 

@@ -70,6 +70,7 @@ Options can be set via CLI flags or environment variables:
 | `--zonos-url` | `ZONOS_URL` | `http://127.0.0.1:1919` | Base URL of Zonos 2 FastAPI server |
 | `--default-voice` | `DEFAULT_VOICE` | `nina2` | Default speaker embedding name |
 | `--default-model` | `DEFAULT_MODEL` | `zonos2` | Default model name |
+| `--max-body-size-mb` | `MAX_BODY_SIZE_MB` | `100` | Max request body size in MB (for large base64 reference audio) |
 | `--log-level` | `LOG_LEVEL` | `info` | Log verbosity (`info`, `debug`, `trace`) |
 
 You can also create a `.env` file in the working directory:
@@ -79,6 +80,7 @@ HOST=0.0.0.0
 PORT=8000
 ZONOS_URL=http://127.0.0.1:1919
 DEFAULT_VOICE=nina2
+MAX_BODY_SIZE_MB=100
 LOG_LEVEL=info
 ```
 

@@ -17,11 +17,13 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .allow_methods(Any)
         .allow_headers(Any);
 
+    let body_limit_bytes = state.config.max_body_size_mb * 1024 * 1024;
+
     Router::new()
         .route("/v1/audio/speech", post(handle_speech))
         .route("/v1/models", get(handle_models))
         .route("/health", get(handle_health))
-        .layer(axum::extract::DefaultBodyLimit::max(50 * 1024 * 1024))
+        .layer(axum::extract::DefaultBodyLimit::max(body_limit_bytes))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(state)

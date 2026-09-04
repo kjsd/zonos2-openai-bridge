@@ -38,6 +38,12 @@ pub async fn handle_speech(
         return Err(AppError::BadRequest("Input text cannot be empty".to_string()));
     }
 
+    if payload.input.chars().count() > 4096 {
+        return Err(AppError::BadRequest(
+            "Input text exceeds maximum limit of 4096 characters (OpenAI specification)".to_string(),
+        ));
+    }
+
     // 1. Resolve voice (fallback to config.default_voice)
     let voice = match payload.voice.as_deref() {
         Some(v) if !v.trim().is_empty() => v.trim(),
