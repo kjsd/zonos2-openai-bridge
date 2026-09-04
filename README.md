@@ -97,13 +97,13 @@ After=network.target
 
 [Service]
 Type=simple
-User=minoru
-WorkingDirectory=/home/minoru/work/proj/zonos2-openai-bridge
-ExecStart=/home/minoru/work/proj/zonos2-openai-bridge/target/release/zonos2-openai-bridge
+User=xxx
+WorkingDirectory=/xxx/zonos2-openai-bridge
+ExecStart=/xxx/zonos2-openai-bridge/target/release/zonos2-openai-bridge
 Restart=always
 RestartSec=3
 Environment=HOST=0.0.0.0
-Environment=PORT=8000
+Environment=PORT=8080
 Environment=ZONOS_URL=http://127.0.0.1:1919
 Environment=DEFAULT_VOICE=nina2
 Environment=LOG_LEVEL=info
