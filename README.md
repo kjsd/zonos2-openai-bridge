@@ -68,7 +68,7 @@ Options can be set via CLI flags or environment variables:
 | `--host` | `HOST` | `0.0.0.0` | Host address to bind bridge server to |
 | `-p, --port` | `PORT` | `8000` | Port to listen on |
 | `--zonos-url` | `ZONOS_URL` | `http://127.0.0.1:1919` | Base URL of Zonos 2 FastAPI server |
-| `--default-voice` | `DEFAULT_VOICE` | `nina2` | Default speaker embedding name |
+| `--default-voice` | `DEFAULT_VOICE` | Default speaker embedding name |
 | `--default-model` | `DEFAULT_MODEL` | `zonos2` | Default model name |
 | `--log-level` | `LOG_LEVEL` | `info` | Log verbosity (`info`, `debug`, `trace`) |
 
@@ -102,9 +102,8 @@ ExecStart=/xxx/zonos2-openai-bridge/target/release/zonos2-openai-bridge
 Restart=always
 RestartSec=3
 Environment=HOST=0.0.0.0
-Environment=PORT=800
+Environment=PORT=8000
 Environment=ZONOS_URL=http://127.0.0.1:1919
-Environment=DEFAULT_VOICE=nina2
 Environment=LOG_LEVEL=info
 
 [Install]
@@ -163,9 +162,7 @@ response.stream_to_file("output.wav")
 
 In SkyrimNet configuration:
 - **TTS Engine**: `Chatterbox` (or `OpenAI Compatible`)
-- **Server URL**: `http://xxx.local:8000/v1/audio/speech`
-- **Voice**: `nina2`
-- **Format**: `wav`
+- **Server URL**: `http://xxx.local:8000`
 
 ### 4. Health Check & Models
 
