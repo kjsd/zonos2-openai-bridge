@@ -20,7 +20,7 @@ pub struct Config {
     pub zonos_url: String,
 
     /// Default speaker embedding voice name
-    #[arg(long, env = "DEFAULT_VOICE", default_value = "nina2")]
+    #[arg(long, env = "DEFAULT_VOICE", default_value = "default")]
     pub default_voice: String,
 
     /// Default model name returned in model list

@@ -304,12 +304,13 @@ pub async fn handle_gradio_file(
 pub async fn handle_speakers(
     State(state): State<Arc<AppState>>,
 ) -> Json<Vec<String>> {
-    Json(vec![
+    let mut speakers = vec![
         state.config.default_voice.clone(),
-        "nina2".to_string(),
         "AmericanFemale".to_string(),
         "AmericanMale".to_string(),
-    ])
+    ];
+    speakers.dedup();
+    Json(speakers)
 }
 
 /// GET /languages

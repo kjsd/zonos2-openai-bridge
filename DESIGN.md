@@ -52,7 +52,7 @@ flowchart LR
      {
        "model": "zonos2",
        "input": "[whisper] パパ、寒くない…？",
-       "voice": "nina2",
+       "voice": "default",
        "response_format": "wav",
        "speed": 1.0
      }
@@ -87,9 +87,9 @@ flowchart LR
 
 5. **REQ-5: 設定の柔軟性 (Configurable)**
    - 環境変数または CLI オプションで設定可能：
-     - バインドポート（デフォルト: `8000`）
+     - バインドポート（デフォルト: `8080`）
      - Zonos 2 API URL（デフォルト: `http://127.0.0.1:1919`）
-     - デフォルト話者（デフォルト: `nina2`）
+     - デフォルト話者（デフォルト: `default`）
      - ログレベル（デフォルト: `info`）
 
 ---

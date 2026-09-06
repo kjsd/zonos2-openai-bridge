@@ -16,7 +16,7 @@ fn create_test_config(zonos_url: String) -> Config {
         host: "127.0.0.1".to_string(),
         port: 8000,
         zonos_url,
-        default_voice: "nina2".to_string(),
+        default_voice: "default".to_string(),
         default_model: "zonos2".to_string(),
         log_level: "error".to_string(),
         max_body_size_mb: 100,
@@ -61,7 +61,7 @@ async fn test_speech_empty_input_bad_request() {
 
     let req_body = json!({
         "input": "   ",
-        "voice": "nina2"
+        "voice": "default"
     });
 
     let response = app
@@ -111,7 +111,7 @@ async fn test_speech_e2e_with_emotion_and_wav_conversion() {
     let req_body = json!({
         "model": "zonos2",
         "input": "[whisper] パパ、寒くない？",
-        "voice": "nina2",
+        "voice": "default",
         "response_format": "wav",
         "speed": 1.0
     });
@@ -260,7 +260,7 @@ async fn test_speakers_endpoint() {
     assert_eq!(response.status(), StatusCode::OK);
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let speakers: Vec<String> = serde_json::from_slice(&body).unwrap();
-    assert!(speakers.contains(&"nina2".to_string()));
+    assert!(speakers.contains(&"default".to_string()));
 }
 
 #[tokio::test]

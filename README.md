@@ -76,7 +76,7 @@ Options can be set via CLI flags or environment variables:
 | `--host` | `HOST` | `0.0.0.0` | Host address to bind bridge server to |
 | `-p, --port` | `PORT` | `8080` | Port to listen on |
 | `--zonos-url` | `ZONOS_URL` | `http://127.0.0.1:1919` | Base URL of Zonos 2 FastAPI server |
-| `--default-voice` | `DEFAULT_VOICE` | `nina2` | Fallback speaker embedding voice name |
+| `--default-voice` | `DEFAULT_VOICE` | `default` | Fallback speaker embedding voice name |
 | `--default-model` | `DEFAULT_MODEL` | `zonos2` | Model name returned in `/v1/models` |
 | `--default-speed` | `DEFAULT_SPEED` | `1.15` | Base speech speed multiplier for Zonos 2 |
 | `--max-body-size-mb` | `MAX_BODY_SIZE_MB` | `100` | Max request body size in MB (for speaker audio) |
@@ -108,15 +108,15 @@ After=network.target
 
 [Service]
 Type=simple
-User=minoru
-WorkingDirectory=/home/minoru/work/zonos2-openai-bridge
-ExecStart=/home/minoru/work/zonos2-openai-bridge/target/release/zonos2-openai-bridge
+User=your_user
+WorkingDirectory=/opt/zonos2-openai-bridge
+ExecStart=/opt/zonos2-openai-bridge/target/release/zonos2-openai-bridge
 Restart=always
 RestartSec=3
 Environment=HOST=0.0.0.0
 Environment=PORT=8080
 Environment=ZONOS_URL=http://127.0.0.1:1919
-Environment=DEFAULT_VOICE=nina2
+Environment=DEFAULT_VOICE=default
 Environment=DEFAULT_SPEED=1.15
 Environment=LOG_LEVEL=info
 
@@ -138,7 +138,7 @@ sudo systemctl enable --now zonos2-openai-bridge
 
 In your SkyrimNet Mod configuration:
 - **TTS Engine**: `Chatterbox` (or `Gradio 4`)
-- **Server Address**: `http://<your-server-ip>:8080`
+- **Server Address**: `http://<your-server-ip>:8080` (e.g. `http://127.0.0.1:8080`)
 - Character reference voices uploaded by SkyrimNet via Gradio will be automatically processed, calibrated, and synthesised.
 
 ### 2. Standard OpenAI TTS Client (e.g., Python / curl)
@@ -149,7 +149,7 @@ curl -X POST http://localhost:8080/v1/audio/speech \
   -d '{
     "model": "zonos2",
     "input": "[happy] [clear throat] Welcome to Skyrim! [chuckle]",
-    "voice": "nina2",
+    "voice": "default",
     "response_format": "wav"
   }' \
   --output speech.wav
