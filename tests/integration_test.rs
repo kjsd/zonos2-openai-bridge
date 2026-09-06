@@ -20,6 +20,7 @@ fn create_test_config(zonos_url: String) -> Config {
         default_model: "zonos2".to_string(),
         log_level: "error".to_string(),
         max_body_size_mb: 100,
+        default_speed: 1.15,
     }
 }
 

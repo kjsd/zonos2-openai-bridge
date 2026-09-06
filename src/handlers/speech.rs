@@ -55,8 +55,8 @@ pub async fn handle_speech(
     }
 
     // 3. Calculate effective speed
-    let base_speed = payload.speed.unwrap_or(1.0).clamp(0.25, 4.0);
-    let final_speed = base_speed * parsed.speed_factor;
+    let user_speed = payload.speed.unwrap_or(1.0).clamp(0.25, 4.0);
+    let final_speed = user_speed * parsed.speed_factor * state.config.default_speed;
 
     // 4. Resolve speaker reference audio (base64) vs registered embedding name
     let custom_audio_b64 = payload
@@ -88,7 +88,7 @@ pub async fn handle_speech(
         emotion_sliders: parsed.emotion_sliders,
         emotion_cfg_scale: parsed.emotion_cfg_scale,
         speed: final_speed,
-        speaking_rate: 15.0 * final_speed,
+        speaking_rate_enabled: true,
         accurate_mode: true,
         stream: false,
     };

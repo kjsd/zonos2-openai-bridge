@@ -169,6 +169,8 @@ async fn run_gradio_generation(
         "Gradio: processing TTS generation"
     );
 
+    let final_speed = parsed.speed_factor * state.config.default_speed;
+
     let zonos_req = ZonosGenerateRequest {
         text: parsed.cleaned_text,
         speaker_embedding_name,
@@ -176,8 +178,8 @@ async fn run_gradio_generation(
         language: "ja".to_string(),
         emotion_sliders: parsed.emotion_sliders,
         emotion_cfg_scale: parsed.emotion_cfg_scale,
-        speed: parsed.speed_factor,
-        speaking_rate: 15.0 * parsed.speed_factor,
+        speed: final_speed,
+        speaking_rate_enabled: true,
         accurate_mode: true,
         stream: false,
     };

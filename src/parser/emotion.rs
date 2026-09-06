@@ -74,10 +74,10 @@ impl EmotionParser {
                 "excited" | "興奮" | "わくわく" => {
                     emotion_sliders.insert("happy".to_string(), 0.8);
                     emotion_cfg_scale = 1.2;
-                    speed_factor = 1.05;
+                    speed_factor = 1.10;
                 }
 
-                // Whisper / Soft / Quiet
+                // Whisper / Soft / Quiet (deliberate & slower pacing)
                 "whisper" | "whispering" | "whispers" | "gentle" | "sweet" | "soft" | "softly"
                 | "shush" | "shh" | "quiet" | "囁き" | "ささやき" | "静かに" => {
                     emotion_sliders.insert("happy".to_string(), 0.2);
@@ -85,7 +85,7 @@ impl EmotionParser {
                     speed_factor = 0.88;
                 }
 
-                // Sad / Cry / Sigh / Groan / Sniff
+                // Sad / Cry / Sigh / Groan / Sniff (slower & heavy pacing)
                 "sigh" | "sighs" | "ため息" => {
                     emotion_sliders.insert("sad".to_string(), 0.6);
                     emotion_cfg_scale = 1.15;
@@ -101,19 +101,20 @@ impl EmotionParser {
                     emotion_sliders.insert("sad".to_string(), 0.5);
                     emotion_sliders.insert("angry".to_string(), 0.3);
                     emotion_cfg_scale = 1.15;
-                    speed_factor = 0.92;
+                    speed_factor = 0.90;
                 }
                 "sniff" | "sniffs" | "鼻をすする" => {
                     emotion_sliders.insert("sad".to_string(), 0.5);
                     emotion_cfg_scale = 1.15;
+                    speed_factor = 0.92;
                 }
 
-                // Angry / Shout / Irritated
+                // Angry / Shout / Irritated (fast & intense pacing)
                 "angry" | "anger" | "mad" | "shout" | "shouts" | "yell" | "yells"
                 | "screaming" | "furious" | "irritated" | "怒り" | "怒" | "叫び" => {
                     emotion_sliders.insert("angry".to_string(), 0.75);
                     emotion_cfg_scale = 1.2;
-                    speed_factor = 1.05;
+                    speed_factor = 1.15;
                 }
 
                 // Surprise / Shock / Gasp
@@ -150,7 +151,7 @@ impl EmotionParser {
                     emotion_sliders.insert("surprised".to_string(), 0.3);
                     emotion_sliders.insert("sad".to_string(), 0.2);
                     emotion_cfg_scale = 1.2;
-                    speed_factor = 0.92;
+                    speed_factor = 0.90;
                 }
                 "advertisement" | "commercial" => {
                     emotion_sliders.insert("happy".to_string(), 0.4);
@@ -160,10 +161,11 @@ impl EmotionParser {
                 "narration" | "narrator" => {
                     // Calm and neutral reading
                     emotion_cfg_scale = 1.0;
-                    speed_factor = 0.98;
+                    speed_factor = 1.00;
                 }
                 "slowly" => {
-                    speed_factor = 0.85;
+                    // Explicit slow pacing requested by prompt
+                    speed_factor = 0.75;
                 }
 
                 // Pure sound/action tags (safely cleaned from text without altering emotion)
@@ -268,11 +270,20 @@ mod tests {
         assert_eq!(parsed.cleaned_text, "The dragons have returned to Skyrim.");
         assert_eq!(parsed.detected_tags, vec!["dramatic tone"]);
         assert_eq!(parsed.emotion_cfg_scale, 1.2);
-        assert_eq!(parsed.speed_factor, 0.92);
+        assert_eq!(parsed.speed_factor, 0.90);
 
         let input_sarcastic = "[sarcastic] Oh, what an amazing hero you are.";
         let parsed_sarcastic = EmotionParser::parse(input_sarcastic);
         assert_eq!(parsed_sarcastic.cleaned_text, "Oh, what an amazing hero you are.");
         assert_eq!(parsed_sarcastic.detected_tags, vec!["sarcastic"]);
+    }
+
+    #[test]
+    fn test_parse_slowly_tag() {
+        let input = "[slowly] Take your time, traveler.";
+        let parsed = EmotionParser::parse(input);
+        assert_eq!(parsed.cleaned_text, "Take your time, traveler.");
+        assert_eq!(parsed.detected_tags, vec!["slowly"]);
+        assert_eq!(parsed.speed_factor, 0.75);
     }
 }

@@ -12,7 +12,7 @@ pub struct ZonosGenerateRequest {
     pub emotion_sliders: HashMap<String, f32>,
     pub emotion_cfg_scale: f32,
     pub speed: f32,
-    pub speaking_rate: f32,
+    pub speaking_rate_enabled: bool,
     pub accurate_mode: bool,
     pub stream: bool,
 }
