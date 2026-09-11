@@ -11,18 +11,16 @@ static FULL_TAG_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Missing opening bracket: e.g. "chuckle] Hello", " clear throat] text"
-/// Captures ASCII tag words followed by a closing bracket ']' at line start,
-/// after whitespace, or after punctuation.
+/// Captures boundary prefix, ASCII tag words, and closing bracket ']'.
 static MISSING_OPEN_BRACKET_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?:^|(?<=[\s.,!?。、！？]))(?P<otag>[a-z][a-z0-9_\- ]{1,25})\]")
+    Regex::new(r"(?i)(?P<prefix>^|[\s.,!?。、！？])(?P<otag>[a-z][a-z0-9_\- ]{1,25})\]")
         .expect("Failed to compile MISSING_OPEN_BRACKET_REGEX")
 });
 
 /// Missing closing bracket: e.g. "[whisper Hello", " [sigh text"
-/// Captures an opening bracket '[' followed by ASCII tag words
-/// directly preceding whitespace, punctuation, or CJK characters.
+/// Captures opening bracket '[', ASCII tag words, and boundary suffix.
 static MISSING_CLOSE_BRACKET_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\[(?P<itag>[a-z][a-z0-9_\- ]{1,25})(?:(?=[\s.,!?。、！？])|(?=[\p{Hiragana}\p{Katakana}\p{Han}]))")
+    Regex::new(r"(?i)\[(?P<itag>[a-z][a-z0-9_\- ]{1,25})(?P<suffix>[\s.,!?。、！？]|$)")
         .expect("Failed to compile MISSING_CLOSE_BRACKET_REGEX")
 });
 
@@ -95,7 +93,7 @@ impl EmotionParser {
                 }
             }
         }
-        working_text = MISSING_OPEN_BRACKET_REGEX.replace_all(&working_text, " ").to_string();
+        working_text = MISSING_OPEN_BRACKET_REGEX.replace_all(&working_text, "$prefix ").to_string();
 
         // 3. Rescue and strip tags with missing closing bracket (e.g. "[whisper Hello")
         for cap in MISSING_CLOSE_BRACKET_REGEX.captures_iter(&working_text) {
@@ -106,7 +104,7 @@ impl EmotionParser {
                 }
             }
         }
-        working_text = MISSING_CLOSE_BRACKET_REGEX.replace_all(&working_text, " ").to_string();
+        working_text = MISSING_CLOSE_BRACKET_REGEX.replace_all(&working_text, " $suffix").to_string();
 
         // 4. Sanitize whitespace and orphan boundary bracket remnants
         let cleaned_collapsed = MULTI_SPACE_REGEX.replace_all(&working_text, " ").to_string();
