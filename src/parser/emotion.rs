@@ -3,12 +3,33 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-/// Regex matching any [bracketed tag] or 【bracketed tag】.
-/// Matches any characters inside brackets (including spaces, hyphens, and unicode)
-/// so that multi-word sound tags like [clear throat] or [dramatic tone] are never missed.
-static TAG_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\[(?P<tag>[^\]]+)\]|【(?P<ztag>[^】]+)】")
-        .expect("Failed to compile TAG_REGEX")
+/// Regex matching full bracketed or starred tags:
+/// [tag], 【tag】, (tag), （tag）, *tag*
+static FULL_TAG_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\[(?P<tag>[^\]]+)\]|【(?P<ztag>[^】]+)】|\((?P<ptag>[^)]+)\)|（(?P<fptag>[^）]+)）|\*(?P<atag>[^*]+)\*")
+        .expect("Failed to compile FULL_TAG_REGEX")
+});
+
+/// Missing opening bracket: e.g. "chuckle] Hello", " clear throat] text"
+/// Captures ASCII tag words followed by a closing bracket ']' at line start,
+/// after whitespace, or after punctuation.
+static MISSING_OPEN_BRACKET_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?:^|(?<=[\s.,!?。、！？]))(?P<otag>[a-z][a-z0-9_\- ]{1,25})\]")
+        .expect("Failed to compile MISSING_OPEN_BRACKET_REGEX")
+});
+
+/// Missing closing bracket: e.g. "[whisper Hello", " [sigh text"
+/// Captures an opening bracket '[' followed by ASCII tag words
+/// directly preceding whitespace, punctuation, or CJK characters.
+static MISSING_CLOSE_BRACKET_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\[(?P<itag>[a-z][a-z0-9_\- ]{1,25})(?:(?=[\s.,!?。、！？])|(?=[\p{Hiragana}\p{Katakana}\p{Han}]))")
+        .expect("Failed to compile MISSING_CLOSE_BRACKET_REGEX")
+});
+
+/// Cleans up orphan bracket or asterisk symbols from text boundaries
+static ORPHAN_BRACKETS_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^[\[\]【】()（）*]+|[\[\]【】()（）*]+$")
+        .expect("Failed to compile ORPHAN_BRACKETS_REGEX")
 });
 
 static MULTI_SPACE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
@@ -46,10 +67,16 @@ impl EmotionParser {
         let mut emotion_cfg_scale = 1.0f32;
         let mut speed_factor = 1.0f32;
 
-        for cap in TAG_REGEX.captures_iter(input) {
+        let mut working_text = input.to_string();
+
+        // 1. Capture and strip full enclosed tags: [...], 【...】, (...), （...）, *...*
+        for cap in FULL_TAG_REGEX.captures_iter(&working_text) {
             let raw_tag = cap
                 .name("tag")
                 .or_else(|| cap.name("ztag"))
+                .or_else(|| cap.name("ptag"))
+                .or_else(|| cap.name("fptag"))
+                .or_else(|| cap.name("atag"))
                 .map(|m| m.as_str().trim().to_lowercase())
                 .unwrap_or_default();
 
@@ -57,6 +84,35 @@ impl EmotionParser {
                 detected_tags.push(raw_tag);
             }
         }
+        working_text = FULL_TAG_REGEX.replace_all(&working_text, " ").to_string();
+
+        // 2. Rescue and strip tags with missing opening bracket (e.g. "chuckle] Hello")
+        for cap in MISSING_OPEN_BRACKET_REGEX.captures_iter(&working_text) {
+            if let Some(m) = cap.name("otag") {
+                let raw_tag = m.as_str().trim().to_lowercase();
+                if !raw_tag.is_empty() {
+                    detected_tags.push(raw_tag);
+                }
+            }
+        }
+        working_text = MISSING_OPEN_BRACKET_REGEX.replace_all(&working_text, " ").to_string();
+
+        // 3. Rescue and strip tags with missing closing bracket (e.g. "[whisper Hello")
+        for cap in MISSING_CLOSE_BRACKET_REGEX.captures_iter(&working_text) {
+            if let Some(m) = cap.name("itag") {
+                let raw_tag = m.as_str().trim().to_lowercase();
+                if !raw_tag.is_empty() {
+                    detected_tags.push(raw_tag);
+                }
+            }
+        }
+        working_text = MISSING_CLOSE_BRACKET_REGEX.replace_all(&working_text, " ").to_string();
+
+        // 4. Sanitize whitespace and orphan boundary bracket remnants
+        let cleaned_collapsed = MULTI_SPACE_REGEX.replace_all(&working_text, " ").to_string();
+        let trimmed = cleaned_collapsed.trim();
+        let sanitized = ORPHAN_BRACKETS_REGEX.replace_all(trimmed, "").to_string();
+        let cleaned_trimmed = sanitized.trim().to_string();
 
         // Apply rules based on detected tags (SkyrimNet / Chatterbox + Nina custom tags)
         for tag in &detected_tags {
@@ -179,12 +235,6 @@ impl EmotionParser {
             }
         }
 
-        // Clean tags from text
-        let cleaned = TAG_REGEX.replace_all(input, " ").to_string();
-        // Collapse multiple spaces into single space
-        let cleaned_collapsed = MULTI_SPACE_REGEX.replace_all(&cleaned, " ").to_string();
-        let cleaned_trimmed = cleaned_collapsed.trim().to_string();
-
         ParsedPrompt {
             cleaned_text: cleaned_trimmed,
             emotion_sliders,
@@ -285,5 +335,51 @@ mod tests {
         assert_eq!(parsed.cleaned_text, "Take your time, traveler.");
         assert_eq!(parsed.detected_tags, vec!["slowly"]);
         assert_eq!(parsed.speed_factor, 0.75);
+    }
+
+    #[test]
+    fn test_parse_missing_opening_bracket_skyrimnet_anomaly() {
+        // Cases directly observed in SkyrimNet split logs where '[' was truncated
+        let input1 = "chuckle] さあケンジ君、やっとウィンターホールドに着いたわ。";
+        let parsed1 = EmotionParser::parse(input1);
+        assert_eq!(parsed1.cleaned_text, "さあケンジ君、やっとウィンターホールドに着いたわ。");
+        assert_eq!(parsed1.detected_tags, vec!["chuckle"]);
+        assert_eq!(parsed1.emotion_sliders.get("happy"), Some(&0.5));
+
+        let input2 = "clear throat] でも、馬車の中なら変な輩に邪魔される心配もないわね。";
+        let parsed2 = EmotionParser::parse(input2);
+        assert_eq!(parsed2.cleaned_text, "でも、馬車の中なら変な輩に邪魔される心配もないわね。");
+        assert_eq!(parsed2.detected_tags, vec!["clear throat"]);
+
+        let input3 = "shush] 攻撃をやめなさい！";
+        let parsed3 = EmotionParser::parse(input3);
+        assert_eq!(parsed3.cleaned_text, "攻撃をやめなさい！");
+        assert_eq!(parsed3.detected_tags, vec!["shush"]);
+
+        let input4 = "chuckle] [whispering] 分かったよ、イリア。";
+        let parsed4 = EmotionParser::parse(input4);
+        assert_eq!(parsed4.cleaned_text, "分かったよ、イリア。");
+        assert_eq!(parsed4.detected_tags, vec!["whispering", "chuckle"]);
+    }
+
+    #[test]
+    fn test_parse_missing_closing_bracket() {
+        let input = "[whisper パパ、寒くない？";
+        let parsed = EmotionParser::parse(input);
+        assert_eq!(parsed.cleaned_text, "パパ、寒くない？");
+        assert_eq!(parsed.detected_tags, vec!["whisper"]);
+    }
+
+    #[test]
+    fn test_parse_parentheses_and_asterisks() {
+        let input1 = "(sigh) イリアさん、どうかその魔法を収めて！";
+        let parsed1 = EmotionParser::parse(input1);
+        assert_eq!(parsed1.cleaned_text, "イリアさん、どうかその魔法を収めて！");
+        assert_eq!(parsed1.detected_tags, vec!["sigh"]);
+
+        let input2 = "*chuckle* おやすみなさい。";
+        let parsed2 = EmotionParser::parse(input2);
+        assert_eq!(parsed2.cleaned_text, "おやすみなさい。");
+        assert_eq!(parsed2.detected_tags, vec!["chuckle"]);
     }
 }
