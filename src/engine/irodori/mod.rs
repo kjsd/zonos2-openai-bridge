@@ -64,17 +64,17 @@ impl TtsEngine for IrodoriEngine {
         // 3. Resolve user speed factor
         let final_speed = req.speed.unwrap_or(1.0).clamp(0.25, 4.0);
 
-        // 4. Resolve custom reference audio if provided
-        let custom_audio_b64 = if let Some(b64) = req.custom_speaker_audio_base64 {
-            let trimmed = b64.trim();
-            if !trimmed.is_empty() {
-                Some(trimmed.to_string())
+        // 4. Resolve custom reference audio if provided (e.g. from Gradio or OpenAI API)
+        let raw_custom_bytes: Option<Vec<u8>> = if let Some(ref bytes) = req.custom_speaker_audio_bytes {
+            if !bytes.is_empty() {
+                Some(bytes.clone())
             } else {
                 None
             }
-        } else if let Some(ref bytes) = req.custom_speaker_audio_bytes {
-            if !bytes.is_empty() {
-                Some(BASE64_STANDARD.encode(bytes))
+        } else if let Some(ref b64) = req.custom_speaker_audio_base64 {
+            let trimmed = b64.trim();
+            if !trimmed.is_empty() {
+                BASE64_STANDARD.decode(trimmed).ok()
             } else {
                 None
             }
@@ -82,18 +82,21 @@ impl TtsEngine for IrodoriEngine {
             None
         };
 
-        let irodori_extra = custom_audio_b64.map(|b64| {
-            serde_json::json!({
-                "ref_audio_base64": b64
-            })
-        });
+        let (resolved_voice, has_custom_audio) = if let Some(bytes) = raw_custom_bytes {
+            let hash = format!("{:x}", md5::compute(&bytes));
+            let dynamic_voice_id = format!("gradio_ref_{hash}");
+            self.client.upload_voice_if_needed(&dynamic_voice_id, bytes).await?;
+            (dynamic_voice_id, true)
+        } else {
+            (voice.to_string(), false)
+        };
 
         info!(
             engine = self.name(),
             original_input = %req.text,
             mapped_text = %mapped.prompt_text,
-            voice = %voice,
-            has_custom_audio = irodori_extra.is_some(),
+            voice = %resolved_voice,
+            has_custom_audio = has_custom_audio,
             tags = ?mapped.detected_tags,
             final_speed = %final_speed,
             "Irodori: processing TTS request"
@@ -103,10 +106,10 @@ impl TtsEngine for IrodoriEngine {
         let irodori_req = IrodoriSpeechRequest {
             model: self.config.irodori_model.clone(),
             input: mapped.prompt_text.clone(),
-            voice: Some(voice.to_string()),
+            voice: Some(resolved_voice),
             response_format: Some("wav".to_string()),
             speed: Some(final_speed),
-            irodori: irodori_extra,
+            irodori: None,
         };
 
         // 6. Call Irodori backend

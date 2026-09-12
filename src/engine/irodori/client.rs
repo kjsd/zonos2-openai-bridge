@@ -76,6 +76,51 @@ impl IrodoriClient {
         Ok(bytes)
     }
 
+    /// Uploads custom reference audio bytes to Irodori-TTS-Server (/v1/audio/voices).
+    /// If the voice already exists (HTTP 409 Conflict), it is reused as a cache hit.
+    pub async fn upload_voice_if_needed(
+        &self,
+        voice_id: &str,
+        audio_bytes: Vec<u8>,
+    ) -> Result<String, AppError> {
+        let url = format!("{}/v1/audio/voices", self.base_url);
+        debug!(url = %url, voice_id = %voice_id, bytes_len = audio_bytes.len(), "Uploading reference voice to Irodori");
+
+        let part = reqwest::multipart::Part::bytes(audio_bytes)
+            .file_name(format!("{voice_id}.wav"))
+            .mime_str("audio/wav")
+            .map_err(|e| AppError::EngineError(format!("Invalid multipart mime type: {e}")))?;
+
+        let form = reqwest::multipart::Form::new()
+            .text("voice_id", voice_id.to_string())
+            .part("file", part);
+
+        let response = self
+            .client
+            .post(&url)
+            .multipart(form)
+            .send()
+            .await
+            .map_err(|e| AppError::EngineError(format!("Failed to upload voice to Irodori-TTS: {e}")))?;
+
+        let status = response.status();
+        if status == reqwest::StatusCode::CREATED {
+            info!(voice_id = %voice_id, "Reference voice registered on Irodori-TTS server");
+            Ok(voice_id.to_string())
+        } else if status == reqwest::StatusCode::CONFLICT {
+            debug!(voice_id = %voice_id, "Reference voice already cached on Irodori-TTS server");
+            Ok(voice_id.to_string())
+        } else {
+            let error_body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            Err(AppError::EngineError(format!(
+                "Failed to upload voice to Irodori (HTTP {status}): {error_body}"
+            )))
+        }
+    }
+
     /// Health check for Irodori-TTS backend
     pub async fn health_check(&self) -> bool {
         let health_url = format!("{}/health", self.base_url);
