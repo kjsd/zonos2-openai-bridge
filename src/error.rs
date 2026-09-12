@@ -11,6 +11,9 @@ pub enum AppError {
     #[error("Bad request: {0}")]
     BadRequest(String),
 
+    #[error("TTS Engine error: {0}")]
+    EngineError(String),
+
     #[error("Zonos backend error: {0}")]
     ZonosError(String),
 
@@ -29,6 +32,7 @@ impl IntoResponse for AppError {
         let (status, error_type, message) = match &self {
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, "invalid_request_error", msg.clone()),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, "not_found_error", msg.clone()),
+            AppError::EngineError(msg) => (StatusCode::BAD_GATEWAY, "engine_error", msg.clone()),
             AppError::ZonosError(msg) => (StatusCode::BAD_GATEWAY, "zonos_error", msg.clone()),
             AppError::AudioConversionError(msg) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "audio_conversion_error", msg.clone())

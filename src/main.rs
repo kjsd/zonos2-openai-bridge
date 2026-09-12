@@ -1,6 +1,6 @@
 use clap::Parser;
+use openai_tts_bridge::{run_server, Config};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-use zonos2_openai_bridge::{run_server, Config};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

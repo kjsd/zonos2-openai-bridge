@@ -4,14 +4,15 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 
 pub async fn handle_models(State(state): State<Arc<AppState>>) -> Json<Value> {
+    let engine_model = state.engine.default_model();
     Json(json!({
         "object": "list",
         "data": [
             {
-                "id": &state.config.default_model,
+                "id": engine_model,
                 "object": "model",
                 "created": 1725400000,
-                "owned_by": "zyphra"
+                "owned_by": state.engine.name()
             },
             {
                 "id": "tts-1",

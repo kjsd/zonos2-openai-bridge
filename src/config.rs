@@ -2,11 +2,15 @@ use clap::Parser;
 
 #[derive(Parser, Debug, Clone)]
 #[command(
-    name = "zonos2-openai-bridge",
-    about = "High-performance OpenAI-compatible TTS bridge for Zonos 2",
+    name = "openai-tts-bridge",
+    about = "High-performance OpenAI & Gradio-compatible TTS bridge supporting multiple engines (Zonos 2, Irodori-TTS)",
     version
 )]
 pub struct Config {
+    /// TTS engine to use ("zonos2" or "irodori")
+    #[arg(long, env = "TTS_ENGINE", default_value = "zonos2")]
+    pub tts_engine: String,
+
     /// Host to bind the bridge server to
     #[arg(long, env = "HOST", default_value = "0.0.0.0")]
     pub host: String,
@@ -18,6 +22,14 @@ pub struct Config {
     /// Base URL of the Zonos 2 FastAPI server
     #[arg(long, env = "ZONOS_URL", default_value = "http://127.0.0.1:1919")]
     pub zonos_url: String,
+
+    /// Base URL of the Irodori-TTS-Server
+    #[arg(long, env = "IRODORI_URL", default_value = "http://127.0.0.1:8088")]
+    pub irodori_url: String,
+
+    /// Default model name for Irodori-TTS
+    #[arg(long, env = "IRODORI_MODEL", default_value = "irodori-tts")]
+    pub irodori_model: String,
 
     /// Default speaker embedding voice name
     #[arg(long, env = "DEFAULT_VOICE", default_value = "default")]

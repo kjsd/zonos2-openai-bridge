@@ -1,10 +1,10 @@
 use crate::config::Config;
+use crate::engine::create_engine;
 use crate::handlers::{
     handle_fallback, handle_gradio_call_generate_audio, handle_gradio_file, handle_gradio_sse,
     handle_gradio_upload, handle_health, handle_languages, handle_models, handle_speakers,
     handle_speech, AppState,
 };
-use crate::zonos::ZonosClient;
 use axum::{
     routing::{get, post},
     Router,
@@ -47,19 +47,19 @@ pub fn create_router(state: Arc<AppState>) -> Router {
 }
 
 pub async fn run_server(config: Config) -> anyhow::Result<()> {
-    let zonos_client = ZonosClient::new(config.zonos_url.clone());
+    let engine = create_engine(&config)?;
     let bind_addr = format!("{}:{}", config.host, config.port);
-
-    let state = Arc::new(AppState::new(config.clone(), zonos_client));
-
-    let app = create_router(state);
 
     info!(
         addr = %bind_addr,
-        zonos_url = %config.zonos_url,
+        engine = %engine.name(),
         default_voice = %config.default_voice,
-        "Starting zonos2-openai-bridge server"
+        default_model = %engine.default_model(),
+        "Starting openai-tts-bridge server"
     );
+
+    let state = Arc::new(AppState::with_engine(config.clone(), engine));
+    let app = create_router(state);
 
     let listener = TcpListener::bind(&bind_addr).await?;
     axum::serve(listener, app).await?;

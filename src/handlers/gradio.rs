@@ -1,8 +1,6 @@
-use crate::audio::float32_to_pcm16_wav;
+use crate::engine::SynthesisRequest;
 use crate::error::AppError;
 use crate::handlers::state::{AppState, GradioEventStatus};
-use crate::parser::EmotionParser;
-use crate::zonos::types::ZonosGenerateRequest;
 use axum::{
     extract::{Multipart, Path, State},
     http::{header, Method, StatusCode, Uri},
@@ -12,8 +10,6 @@ use axum::{
     },
     Json,
 };
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use base64::Engine as _;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::convert::Infallible;
@@ -141,52 +137,35 @@ async fn run_gradio_generation(
     speaker_path: Option<String>,
     event_id: &str,
 ) -> Result<Value, AppError> {
-    // 1. Emotion parsing
-    let parsed = EmotionParser::parse(&raw_text);
-
-    // 2. Resolve speaker reference audio
-    let mut speaker_audio_base64 = None;
-    let mut speaker_embedding_name = None;
-
-    if let Some(ref path_str) = speaker_path {
+    let custom_audio_bytes = if let Some(ref path_str) = speaker_path {
         let p = StdPath::new(path_str);
         if p.is_file() {
-            if let Ok(bytes) = tokio::fs::read(p).await {
-                speaker_audio_base64 = Some(BASE64_STANDARD.encode(&bytes));
-            }
+            tokio::fs::read(p).await.ok()
+        } else {
+            None
         }
-    }
-
-    if speaker_audio_base64.is_none() {
-        speaker_embedding_name = Some(state.config.default_voice.clone());
-    }
+    } else {
+        None
+    };
 
     info!(
         raw_text = %raw_text,
-        cleaned_text = %parsed.cleaned_text,
-        tags = ?parsed.detected_tags,
-        has_custom_audio = speaker_audio_base64.is_some(),
+        has_custom_audio = custom_audio_bytes.is_some(),
+        engine = state.engine.name(),
         "Gradio: processing TTS generation"
     );
 
-    let final_speed = parsed.speed_factor * state.config.default_speed;
-
-    let zonos_req = ZonosGenerateRequest {
-        text: parsed.cleaned_text,
-        speaker_embedding_name,
-        speaker_audio_base64,
-        language: "ja".to_string(),
-        emotion_sliders: parsed.emotion_sliders,
-        emotion_cfg_scale: parsed.emotion_cfg_scale,
-        speed: final_speed,
-        speaking_rate_enabled: true,
-        accurate_mode: true,
-        stream: false,
+    let synth_req = SynthesisRequest {
+        text: raw_text,
+        voice: None, // defaults to config.default_voice inside engine
+        custom_speaker_audio_bytes: custom_audio_bytes,
+        custom_speaker_audio_base64: None,
+        speed: Some(1.0),
+        response_format: Some("wav".to_string()),
     };
 
-    let raw_pcm = state.zonos.generate_pcm(&zonos_req).await?;
-    let wav_bytes = float32_to_pcm16_wav(&raw_pcm, 44100, 1)
-        .map_err(AppError::AudioConversionError)?;
+    let result = state.engine.synthesize(synth_req).await?;
+    let wav_bytes = result.audio_bytes;
 
     let voices_dir = ensure_voices_dir();
     let out_filename = format!("out_{event_id}.wav");

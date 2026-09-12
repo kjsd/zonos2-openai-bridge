@@ -9,13 +9,16 @@ use std::sync::Arc;
 use tower::ServiceExt;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-use zonos2_openai_bridge::{create_router, AppState, Config, ZonosClient};
+use openai_tts_bridge::{create_router, AppState, Config, ZonosClient};
 
 fn create_test_config(zonos_url: String) -> Config {
     Config {
+        tts_engine: "zonos2".to_string(),
         host: "127.0.0.1".to_string(),
         port: 8000,
         zonos_url,
+        irodori_url: "http://127.0.0.1:8088".to_string(),
+        irodori_model: "irodori-tts".to_string(),
         default_voice: "default".to_string(),
         default_model: "zonos2".to_string(),
         log_level: "error".to_string(),

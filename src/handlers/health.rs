@@ -4,13 +4,14 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 
 pub async fn handle_health(State(state): State<Arc<AppState>>) -> Json<Value> {
-    let zonos_connected = state.zonos.health_check().await;
+    let engine_connected = state.engine.health_check().await.is_ok();
 
     Json(json!({
         "status": "ok",
-        "zonos_connected": zonos_connected,
+        "engine": state.engine.name(),
+        "engine_connected": engine_connected,
+        "zonos_connected": engine_connected,
         "default_voice": &state.config.default_voice,
-        "default_model": &state.config.default_model,
-        "zonos_url": &state.config.zonos_url,
+        "default_model": state.engine.default_model(),
     }))
 }
