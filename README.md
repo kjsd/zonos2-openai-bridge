@@ -45,25 +45,27 @@ The bridge parses inline tags in brackets `[...]`, `【...】`, `(...)`, or `*..
 
 | Tag / Syntax | Expression | Zonos 2 Mapping | Irodori-TTS Emoji |
 | :--- | :--- | :--- | :--- |
-| `[whisper]`, `[softly]`, `【囁き】` | Whisper / Gentle | `happy: 0.2`, `cfg: 1.1`, speed 1.01x | `👂` |
+| `[whisper]`, `[softly]`, `【囁き】` | Whisper / Soft Ear-level | `happy: 0.2`, `cfg: 1.1`, speed 1.01x | `👂` |
+| `[gentle]`, `[sweet]`, `【優しく】` | Gentle / Tender | `happy: 0.3`, `cfg: 1.1`, speed 1.05x | `🫶` |
 | `[sigh]`, `[sad]`, `【ため息】` | Sigh / Sorrow | `sad: 0.7`, `cfg: 1.2`, speed 1.03x | `😮‍💨` |
-| `[chuckle]`, `[giggle]`, `【くすくす】` | Chuckle / Laugh | `happy: 0.5`, `cfg: 1.15`, speed 1.15x | `🤭` |
-| `[happy]`, `[laughter]`, `【笑い】` | Joy / Happy | `happy: 0.7`, `cfg: 1.2`, speed 1.15x | `😊` |
-| `[angry]`, `[shout]`, `【怒り】` | Anger / Shout | `angry: 0.75`, `cfg: 1.2`, speed 1.32x | `😡` |
+| `[pant]`, `【息切れ】` | Shortness of breath / Panting | `sad: 0.4`, speed 1.15x | `🌬️` |
+| `[chuckle]`, `[giggle]`, `【くすくす】` | Chuckle / Suppressed Laugh | `happy: 0.5`, `cfg: 1.15`, speed 1.15x | `🤭` |
+| `[happy]`, `[smile]`, `【笑い】` | Joy / Happy / Bright | `happy: 0.7`, `cfg: 1.2`, speed 1.15x | `😊` |
+| `[laugh]`, `[excited]`, `【興奮】` | Excited / Loud Laughter | `happy: 0.8`, `cfg: 1.2`, speed 1.26x | `😆` |
+| `[angry]`, `[shout]`, `【怒り】` | Anger / Shout / Screaming | `angry: 0.75`, `cfg: 1.2`, speed 1.32x | `😡` |
 | `[crying]`, `[weep]`, `【泣き】` | Crying / Weeping | `sad: 0.8`, `cfg: 1.25`, speed 1.00x | `😭` |
-| `[fear]`, `[scared]`, `【恐怖】` | Fear | `fear: 0.7`, `cfg: 1.2`, speed 1.15x | `😱` |
-| `[surprised]`, `[shock]`, `【驚き】` | Surprise | `surprised: 0.7`, `cfg: 1.2`, speed 1.15x | `😲` |
+| `[fear]`, `[scared]`, `【恐怖】` | Fear / Flustered / Panicked | `fear: 0.7`, `cfg: 1.2`, speed 1.15x | `😰` |
+| `[surprised]`, `[shock]`, `【驚き】` | Surprise / Shock | `surprised: 0.7`, `cfg: 1.2`, speed 1.15x | `😲` |
 | `[gasp]`, `【息をのむ】` | Gasp | `surprised: 0.6`, `fear: 0.3`, speed 1.15x | `😲` |
-| `[sniff]`, `【鼻をすする】` | Sniffle | `sad: 0.5`, `cfg: 1.15`, speed 1.05x | `🤧` |
-| `[groan]`, `【うめき】` | Groan / Pain | `sad: 0.5`, `angry: 0.3`, speed 1.03x | `😩` |
+| `[sniff]`, `【鼻をすする】` | Sniffle / Sneezing | `sad: 0.5`, `cfg: 1.15`, speed 1.05x | `🤧` |
+| `[groan]`, `【うめき】` | Groan / Pain / Panting | `sad: 0.5`, `angry: 0.3`, speed 1.03x | `🥵` |
 | `[yawn]`, `【あくび】` | Yawn | Neutral | `🥱` |
 | `[pause]` | Silence marker | Strip tag | `⏸️` |
 | `[slowly]`, `【ゆっくり】` | Slow pacing | Speed 0.86x | `🐢` |
 | `[fast]`, `【早口】` | Fast pacing | Speed 1.26x | `⏩` |
-| `[excited]`, `【興奮】` | Excited | `happy: 0.8`, `cfg: 1.2`, speed 1.26x | `✨` |
-| `[sarcastic]`, `【皮肉】` | Sarcasm | `angry: 0.3`, `sad: 0.2`, speed 1.09x | `😏` |
-| `[dramatic]`, `[dramatic tone]` | Dramatic | `surprised: 0.3`, `sad: 0.2`, speed 1.03x | `🎭` |
-| `[clear throat]`, `[cough]` | Sound tags | Stripped from spoken audio | Stripped |
+| `[sarcastic]`, `【皮肉】` | Sarcasm / Smirk | `angry: 0.3`, `sad: 0.2`, speed 1.09x | `😏` |
+| `[dramatic]`, `[dramatic tone]` | Dramatic / Loudspeaker | `surprised: 0.3`, `sad: 0.2`, speed 1.03x | `📢` |
+| `[clear throat]`, `[cough]` | Throat clearing / Cough | Stripped from spoken text | `🤧` |
 
 ---
 

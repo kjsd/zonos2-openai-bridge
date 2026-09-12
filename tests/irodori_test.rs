@@ -179,3 +179,55 @@ async fn test_irodori_speech_missing_bracket_recovery() {
         "chuckle"
     );
 }
+
+#[tokio::test]
+async fn test_irodori_speech_official_sound_and_expression_tags() {
+    let mock_server = MockServer::start().await;
+    let dummy_wav = make_dummy_wav();
+
+    // Verify clear throat -> 🤧 and pant -> 🌬️
+    Mock::given(method("POST"))
+        .and(path("/v1/audio/speech"))
+        .respond_with(move |req: &wiremock::Request| {
+            let body_json: Value = serde_json::from_slice(&req.body).unwrap();
+            let input_text = body_json["input"].as_str().unwrap();
+            assert!(input_text.contains('🤧'), "Text must contain sneeze/throat-clear emoji");
+            assert!(input_text.contains('🌬'), "Text must contain pant/breath emoji");
+            assert!(input_text.contains("走って逃げてきたの"));
+
+            ResponseTemplate::new(200)
+                .set_body_bytes(dummy_wav.clone())
+                .insert_header("content-type", "audio/wav")
+        })
+        .mount(&mock_server)
+        .await;
+
+    let config = create_irodori_test_config(mock_server.uri());
+    let engine = create_engine(&config).unwrap();
+    let state = Arc::new(AppState::with_engine(config, engine));
+    let app = create_router(state);
+
+    let speech_req = json!({
+        "model": "irodori-tts",
+        "input": "[clear throat] [pant] 走って逃げてきたの…！",
+        "voice": "default"
+    });
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/v1/audio/speech")
+                .method("POST")
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_vec(&speech_req).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers().get("x-emotion-tags").unwrap(),
+        "clear throat, pant"
+    );
+}
